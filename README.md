@@ -39,6 +39,7 @@ to your Euphoria include directory.  For example:
 ##Bundling with your application:
 
 To bundle with your application you have at least 3 choices:
+
 1. provide download instructions for your user
 2. place the guitar directory next to your executable program
 3. place the guitar directory in the include paths
