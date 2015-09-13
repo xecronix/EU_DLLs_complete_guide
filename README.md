@@ -1,4 +1,5 @@
-Copyright (c) 2015 Ronald Weidner
+#Euphoria's Complete Guide to Using DLLs
+##Copyright (c) 2015 Ronald Weidner
 
 Permission is hereby granted, free of charge, to any person obtaining a 
 copy of this software and associated documentation files (the "Software"), 
@@ -18,24 +19,24 @@ CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
 TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE 
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-Description:
+##Description:
 An example of wrapping up and packaging a DLL for deployment.
 
-Building:
-$> cd libsrc
-$> make
+##Building:
+>$ cd libsrc
+>$ make
 
 If you're using another OS other than Linux, you may need to modify
 the Makefile such that the REMOVE file command and the COPY file command
 match your OS.  (ie "del" and "copy")
 
-Installing:
+##Installing:
 To install this library globally, simply copy the directory "guitar"
 to your Euphoria include directory.  For example:
 
-$> cp -R guitar /usr/local/share/euphoria/include
+>$ cp -R guitar /usr/local/share/euphoria/include
 
-Bundling with your application:
+##Bundling with your application:
 
 To bundle with your application you have at least 3 choices:
 1. provide download instructions for your user
