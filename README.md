@@ -25,16 +25,16 @@ An example of wrapping up and packaging a DLL for deployment.
 ##Building:
 >$ cd libsrc && make && cd ..
 
+If you're using another OS other than Linux, you may need to modify
+the Makefile such that the REMOVE file command and the COPY file command
+match your OS.  (ie "del" and "copy")
+
 ##Running the demo
 Make sure the executable bit is set
 >$ chmod +x guitar.ex
 
 Then just run it!
 >$ ./guitar.ex
-
-If you're using another OS other than Linux, you may need to modify
-the Makefile such that the REMOVE file command and the COPY file command
-match your OS.  (ie "del" and "copy")
 
 ##Installing:
 To install this library globally, simply copy the directory "guitar"
