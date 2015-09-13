@@ -23,8 +23,14 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 An example of wrapping up and packaging a DLL for deployment.
 
 ##Building:
->$ cd libsrc
->$ make
+>$ cd libsrc && make && cd ..
+
+##Running the demo
+Make sure the executable bit is set
+>$ chmod +x guitar.ex
+
+Then just run it!
+>$ ./guitar.ex
 
 If you're using another OS other than Linux, you may need to modify
 the Makefile such that the REMOVE file command and the COPY file command
@@ -45,3 +51,4 @@ To bundle with your application you have at least 3 choices:
 3. place the guitar directory in the include paths
 
 Thanks.
+
