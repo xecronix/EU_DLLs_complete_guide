@@ -7,6 +7,14 @@ public function include_derived_ext_paths(sequence libdir, sequence lib)
     sequence dll_name = sprintf("%s.%s", {lib, SHARED_LIB_EXT})
     retval = append(retval, dll_name)
     sequence current = join_path({current_dir(), dll_name})
+
+ifdef WINDOWS then 
+    if current[1] = '\\' then 
+        -- trim leading backslash character 
+        current = current[2..$] 
+    end if 
+end ifdef 
+
     retval = append(retval, current)
     for i = 1 to length(inc_paths) do
         sequence inc_path = inc_paths[i]
