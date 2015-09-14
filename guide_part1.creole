@@ -1,0 +1,355 @@
+===Download on Github
+[[Complete Guide to Using DLLs in OpenEuphoria | https://github.com/xecronix/EU_DLLs_complete_guide]]
+
+==Why
+Over the years many programs have been written that take advantage of previously written code stored in dynamically linked libraries.  On Windows these libraries have a .dll extension and on Linux/Unix they often end with a .so extension.  These libraries can provide functionality for your program that would otherwise take years to achieve.  These features include networking, graphics, sound, GUI, and much more.
+
+==What
+This is a non-trivial topic and will need to be spread out over several sections.  In this section we'll build a small DLL that will start our adventure into using libraries in our Euphoria programs.  In the next few sections we'll explore some real world examples.
+
+==Prerequisites
+This guide has prerequisites.  I believe the lists below to be complete.  If any other prerequisites pop up during the evolution of this guide I'll be sure to update this section.
+
+====Knowledge
+At this point it's unavoidable.  Some knowledge of C is required.  While expert knowledge is not required you should be familiar with C header files and C data types.  Additionally, I'll assume that you understand pointers and structs as many, perhaps all, DLLs that you'll want to use will take advantage of at least one of these features, probably both.
+
+I like using Makefiles for tasks.  If you copy my examples make sure you know that line indents in a Makefile are [TAB]s not [SPACE]s
+
+====Reading
+* [[Dynamic Linking to external code | http://openeuphoria.org/docs/std_dll.html#_5377_dynamiclinkingtoexternalcode]] - Most of this page describes C type constants.  There are only 7 functions in std/dll.e and you'll need 6 of them in this first guide.
+* [[Machine Level Access | http://openeuphoria.org/docs/std_machine.html#_5561_machinelevelaccess]] - For this guide you'll primarily use the poke and peek functions from ste/machine.e.  There are several of these and you should know what each does.
+* [[UsingDLLs]] - This is a light and breezy introduction to this topic.
+
+====Tools
+* OpenEuphoria 4.0 or better
+* GCC compiler
+* make
+
+It is possible to use other tool chains.  In fact people do it all the time.  But this is the tool chain I'm using.  If you prefer a different tool chain you may need to adapt the some parts of this guide to use your tools.
+
+Additionally, I'm using Linux.  I'll try hard to keep Linux-isms to a minimum as the entire concept is a near perfect match between Linux and other platforms.
+
+==How
+The first step of this process is really about identifying the right library for the job.  As you search for the right solution it's important to note that C is not CPP.  It is possible to use CPP DLLs in OpenEuphoria but that first involves creating a C wrapper.  So, if you want to skip wrapping CPP code into C wrappers, try to find the functionality you're looking for written in C in the first place.  
+
+So, What is a wrapper? "A [[wrapper function | https://en.wikipedia.org/wiki/Wrapper_function]] is a function in a computer program whose main purpose is to call a second function with little or no additional computation".  In our case we are creating a DLL wrapper which I'll define as a collection of wrapper functions used to make working with DLLs practical and in some cases, possible.  The goal is to translate the C header files to OpenEuphoria constructs and then use the wrapper in our programs.
+
+Once your DLL is all wrapped up you'll want to distribute your new wrapper.  This becomes a little sticky depending on what you're trying to do.  Did you wrap your DLL for use in one of your own programs?  Did you wrap the DLL so that other developers can use some cool C library?  Is this a "standard" DLL that you expect to already exist on the target machine?  In an attempt to solve some of these concerns this guide comes with a libhelper.e that will attempt to find a DLL in some reasonable locations based on OS.  For me, I'll put DLLs in a directory called "ext" located right next to the wrapper.  See the README for an example of installation instructions.
+
+==Example
+Let's take a quick look at how the project is laid out.
+
+{{{
+&#9500;&#9472;&#9472; guitar
+&#9474;   &#9500;&#9472;&#9472; ext
+&#9474;   &#9474;   &#9492;&#9472;&#9472; guitar.so
+&#9474;   &#9500;&#9472;&#9472; guitar.e
+&#9474;   &#9492;&#9472;&#9472; libhelper.e
+&#9500;&#9472;&#9472; guitar.ex
+&#9500;&#9472;&#9472; libsrc
+&#9474;   &#9500;&#9472;&#9472; guitar.c
+&#9474;   &#9500;&#9472;&#9472; guitar.h
+&#9474;   &#9500;&#9472;&#9472; guitar.so
+&#9474;   &#9492;&#9472;&#9472; Makefile
+&#9492;&#9472;&#9472; README
+}}}
+*guitar - directory is where the wrapper is located.  This directory can be copied to install or bundled with your application.
+*guitar.e - is the wrapper file.
+*ext - directory is where the DLL goes.
+*guitar.ex - is a demo program using the DLL
+*libsrc - If you need to build the DLL the source and Makefile are here.
+*README - includes description, license and build/install info.
+
+==Full Source
+%%style=embedded 
+%(
+guitar.h 
+{{{
+typedef struct
+{
+  int string_count;
+  char* brand;
+} Guitar;
+
+/* Initialize an new guitar struct 
+ * 
+ * returns a pointer to the new guitar
+ * */
+Guitar * guitar_new();
+
+/* Free up the guitar and release it from memory
+ * This function will also free up the guitar.brand memory
+ * */
+void guitar_destroy(Guitar * guitar);
+
+/*Sets the string_count value for the guitar
+ * 
+ * Guitar * guitar The struct that needs a new string count value
+ * Int count the new number of string for the guitar
+ * */
+void guitar_set_string_count(Guitar * guitar, int count);
+
+/*Gets the string_count value for the guitar
+ * 
+ * Guitar * guitar The struct holds the string count value we want
+ * 
+ * returns an integer value for the number of strings.
+ * */
+int guitar_get_string_count(Guitar * guitar);
+
+/*Sets the brand value for the guitar.  
+ * Frees the current brand char *
+ * Copies the const * brand into a new char *
+ * sets the guitar brand to this new copied value. 
+ * 
+ * Guitar * guitar The struct that needs a new brand value
+ * */
+void guitar_set_brand(Guitar * guitar, const char * brand);
+
+/*Gets the brand pointer for the guitar
+ * 
+ * Guitar * guitar The struct holds the brand value we want
+ * 
+ * returns an char * for the guitar brand.
+ * */
+const char * guitar_get_brand(Guitar * guitar);
+}}}
+)%
+
+%%style=embedded 
+%( 
+guitar.c
+{{{
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include "guitar.h"
+
+void guitar_set_string_count(Guitar * guitar, int count)
+{
+  guitar->string_count = count;
+}
+
+int guitar_get_string_count(Guitar * guitar)
+{
+  return guitar->string_count;
+}
+
+void guitar_set_brand(Guitar * guitar, const char * brand)
+{
+  if (guitar->brand != NULL)
+  {
+      free(guitar->brand);
+  }
+  char * new_brand = (char*)malloc(strlen(brand)+1);
+  strncpy(new_brand, brand, strlen(brand));
+  new_brand[strlen(brand)] = '\0';
+  guitar->brand = new_brand;
+}
+
+const char * guitar_get_brand(Guitar * guitar)
+{
+  return guitar->brand;
+}
+
+void guitar_destroy(Guitar * guitar)
+{
+  if (guitar->brand != NULL)
+  {
+      free(guitar->brand);
+      guitar->brand=NULL;
+  }
+  
+  free(guitar);
+}
+
+Guitar * guitar_new()
+{
+  Guitar * guitar;
+  guitar = (Guitar*)malloc(sizeof(Guitar));
+  memset(guitar, '\0', sizeof(Guitar));
+  return guitar;
+}
+}}} 
+)% 
+
+%%style=embedded 
+%( 
+Makefile
+{{{
+COPY=cp
+REMOVE=rm
+all:
+	gcc -shared -fPIC -o guitar.so guitar.c 
+	${COPY} guitar.so ../guitar/ext
+
+clean:
+	${REMOVE} guitar.so
+	${REMOVE} ../guitar/ext/guitar.so
+
+}}}
+)% 
+
+%%style=embedded 
+%( 
+libhelper.e
+<eucode>
+namespace libhelper
+include std/filesys.e
+
+public function include_derived_ext_paths(sequence libdir, sequence lib)
+    sequence inc_paths = include_paths(1)
+    sequence retval = {}
+    sequence dll_name = sprintf("%s.%s", {lib, SHARED_LIB_EXT})
+    retval = append(retval, dll_name)
+    sequence current = join_path({current_dir(), dll_name})
+    retval = append(retval, current)
+    for i = 1 to length(inc_paths) do
+        sequence inc_path = inc_paths[i]
+        sequence last_char = {inc_path[$]}
+        if equal(last_char, SLASH) then
+            inc_path = inc_path[1..$-1]
+        end if
+        retval = append(retval, join_path({inc_path, libdir, "ext", dll_name}))
+    end for
+    return retval
+end function
+</eucode>
+)% 
+
+%%style=embedded 
+%( 
+guitar.e
+<eucode>
+namespace guitar
+include std/dll.e
+include std/machine.e
+include std/pretty.e
+include libhelper.e
+
+-- Globals
+atom  dllid_guitar_dll, 
+      rid_guitar_new, 
+      rid_guitar_destroy, 
+      rid_guitar_set_brand,
+      rid_guitar_get_brand,
+      rid_guitar_set_string_count,
+      rid_guitar_get_string_count
+
+-- Wrapper functions.  So using the dll seems more Euphoria like.
+public function guitar_new()
+  return c_func(rid_guitar_new, {})
+end function
+
+public procedure guitar_destroy(atom guitar)
+  c_proc(rid_guitar_destroy, {guitar})
+end procedure
+
+public procedure guitar_set_brand(atom guitar, sequence brand)
+  atom brand_ptr = allocate_string(brand)
+  c_proc(rid_guitar_set_brand, {guitar, brand_ptr} )
+end procedure
+
+public function guitar_get_brand(atom guitar)
+  atom brand_ptr = c_func(rid_guitar_get_brand, {guitar})
+  sequence brand = {}
+  brand = peek_string(brand_ptr)
+  return brand  
+end function
+
+public procedure guitar_set_string_count(atom guitar, integer cnt)
+  c_proc(rid_guitar_set_string_count, {guitar, cnt} )
+end procedure
+
+public function guitar_get_string_count(atom guitar)
+  integer cnt = c_func(rid_guitar_get_string_count, {guitar})
+  return cnt
+end function
+
+-- Pseduo Link --
+-- Make sure we can open the dll before we go any further --
+dllid_guitar_dll = open_dll(include_derived_ext_paths("guitar", "guitar"))
+if dllid_guitar_dll = 0 then
+  puts(2, "Could not find or open dynamic lib guitar.  Tried the following: ")
+  pretty_print(2, include_derived_ext_paths("guitar", "guitar"), {2})
+  abort(1)
+end if
+
+-- We need an identifier that represents our c routine.  This is accomplished by
+-- mapping the dll function prototype (or signature if you prefer) to something 
+-- Euphoira will know how to handle.
+rid_guitar_new = define_c_func(dllid_guitar_dll, "guitar_new", {}, C_POINTER)
+rid_guitar_destroy = define_c_proc(dllid_guitar_dll, "guitar_destroy", {C_POINTER})
+rid_guitar_set_brand = define_c_proc(dllid_guitar_dll, "guitar_set_brand", {C_POINTER, C_POINTER})
+rid_guitar_get_brand = define_c_func(dllid_guitar_dll, "guitar_get_brand", {C_POINTER}, C_POINTER)
+rid_guitar_set_string_count = define_c_proc(dllid_guitar_dll, "guitar_set_string_count", {C_POINTER, C_INT})
+rid_guitar_get_string_count = define_c_func(dllid_guitar_dll, "guitar_get_string_count", {C_POINTER}, C_INT)
+
+</eucode>
+)% 
+
+%%style=embedded 
+%( 
+guitar.ex
+<eucode>
+#!/usr/bin/env eui
+include guitar.e
+atom guitar = guitar_new()
+guitar_set_brand(guitar, "fender")
+guitar_set_string_count(guitar, 6)
+printf(1, "Your guitar is a %d string %s\n", {guitar_get_string_count(guitar), guitar_get_brand(guitar)})
+guitar_destroy(guitar)
+</eucode>
+)% 
+
+%%style=embedded 
+%( 
+{{{
+Copyright (c) 2015 Ronald Weidner
+
+Permission is hereby granted, free of charge, to any person obtaining a 
+copy of this software and associated documentation files (the "Software"), 
+to deal in the Software without restriction, including without limitation 
+the rights to use, copy, modify, merge, publish, distribute, sublicense, 
+and/or sell copies of the Software, and to permit persons to whom the 
+Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included 
+in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS 
+OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF 
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. 
+IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY 
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, 
+TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE 
+SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+Description:
+An example of wrapping up and packaging a DLL for deployment.
+
+Building:
+$> cd libsrc
+$> make
+
+If you're using another OS other than Linux, you may need to modify
+the Makefile such that the REMOVE file command and the COPY file command
+match your OS.  (ie "del" and "copy")
+
+Installing:
+To install this library globally, simply copy the directory "guitar"
+to your Euphoria include directory.  For example:
+
+$> cp -R guitar /usr/local/share/euphoria/include
+
+Bundling with your application:
+
+To bundle with your application you have at least 3 choices:
+1. provide download instructions for your user
+2. place the guitar directory next to your executable program
+3. place the guitar directory in the include paths
+
+Thanks.
+
+}}}
+)% 
